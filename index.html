@@ -99,7 +99,9 @@ document.getElementById('cameraInput').addEventListener('change', async (e) => {
             if (!response.ok) throw new Error("Erro no servidor backend");
 
             const result = await response.json();
+            console.log("Resposta recebida da IA:", result);
             // Ajuste conforme o formato que o BLIP retorna
+            if (Array.isArray(result) && result[0].generated_text) {
             const descricao = result[0].generated_text;
 
             document.getElementById('p-nome').value = descricao;
