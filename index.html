@@ -79,38 +79,48 @@
         showTab('tab-price');
     }
 
-    // --- INTELIGÊNCIA ARTIFICIAL ---
-    document.getElementById('cameraInput').addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        document.getElementById('status').innerText = "Analisando com IA...";
+// --- INTELIGÊNCIA ARTIFICIAL ATUALIZADA ---
+document.getElementById('cameraInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    document.getElementById('status').innerText = "Analisando com IA...";
 
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-            try {
-                // Envia para o Hugging Face
-                const response = await fetch(API_URL, {
-                    method: "POST",
-                    headers: { "Authorization": `Bearer ${HF_TOKEN}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({ inputs: reader.result.split(',')[1] })
-                });
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+        try {
+            // Convertendo a imagem base64 para o formato esperado pela API
+            const base64Image = reader.result.split(',')[1];
+            
+            const response = await fetch(API_URL, {
+                method: "POST",
+                headers: { 
+                    "Authorization": `Bearer ${HF_TOKEN}`, 
+                    "Content-Type": "application/json" 
+                },
+                body: JSON.stringify({ inputs: base64Image })
+            });
 
-                const result = await response.json();
-                const descricao = result[0].generated_text;
-
-                document.getElementById('p-nome').value = descricao;
-                document.getElementById('p-marca').value = "Detectado via IA";
-                document.getElementById('p-cat').value = "Geral";
-                document.getElementById('form-produto').style.display = 'block';
-                document.getElementById('status').innerText = "Identificado!";
-            } catch (err) {
-                console.error(err);
-                alert("Erro ao conectar com Hugging Face. Verifique se está usando o Live Server.");
-                document.getElementById('status').innerText = "Erro.";
+            if (!response.ok) {
+                const errorData = await response.text();
+                throw new Error(`Erro ${response.status}: ${errorData}`);
             }
-        };
-        reader.readAsDataURL(file);
-    });
+
+            const result = await response.json();
+            const descricao = result[0].generated_text;
+
+            document.getElementById('p-nome').value = descricao;
+            document.getElementById('p-marca').value = "Detectado via IA";
+            document.getElementById('p-cat').value = "Geral";
+            document.getElementById('form-produto').style.display = 'block';
+            document.getElementById('status').innerText = "Identificado!";
+        } catch (err) {
+            console.error("Erro detalhado:", err);
+            alert("Erro na IA: " + err.message);
+            document.getElementById('status').innerText = "Erro.";
+        }
+    };
+    reader.readAsDataURL(file);
+});
 
     // --- LÓGICA DE DADOS ---
     function salvarProduto() {
