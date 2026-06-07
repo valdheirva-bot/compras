@@ -2,110 +2,32 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Smart Shop & Save</title>
-    <style>
-        :root { --primary: #2dd4bf; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
-        .card { background: var(--card); padding: 20px; border-radius: 15px; margin-bottom: 20px; }
-        input, button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; }
-        button { background: var(--primary); font-weight: bold; cursor: pointer; }
-        table { width: 100%; border-collapse: collapse; }
-        td, th { padding: 8px; border-bottom: 1px solid #334155; }
-    </style>
+    <title>Scanner de Produtos</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
 
 <div class="card">
     <input type="file" id="cameraInput" accept="image/*" capture="environment">
     <input type="text" id="p-nome" placeholder="Nome do Produto">
-    <input type="number" id="p-valor" placeholder="R$ Valor Pago">
-    <button onclick="adicionarProduto()">Adicionar ao Histórico</button>
+    <p id="status"></p>
 </div>
 
-<h3>Gastos: <span id="total-geral">R$ 0,00</span></h3>
-<table id="lista-compras">
-    <thead><tr><th>Produto</th><th>Valor</th></tr></thead>
-    <tbody></tbody>
-</table>
-
 <script>
-    const API_URL = "https://render-1-fobj.onrender.com/analisar";
-
-    // 1. Identificar com IA
     document.getElementById('cameraInput').addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    const reader = new FileReader();
-    
-    reader.onloadend = async () => {
+        const file = e.target.files[0];
+        const status = document.getElementById('status');
         const pNome = document.getElementById('p-nome');
-        pNome.value = "Analisando..."; // Feedback visual
 
-        // Remove o prefixo do base64 (data:image/jpeg;base64,...)
-        const base64Clean = reader.result.split(',')[1]; 
-
-        try {
-            const res = await fetch("https://render-1-fobj.onrender.com/analisar", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ inputs: base64Clean })
-            });
-            
-            const data = await res.json();
-            
-            if (data.descricao) {
-                pNome.value = data.descricao;
-            } else {
-                pNome.value = "Não identificado";
-            }
-        } catch (error) {
-            alert("Erro ao conectar com servidor.");
-            pNome.value = "";
-        }
-    };
-    reader.readAsDataURL(file);
-});
-
-    // 2. Salvar e Calcular
-    function adicionarProduto() {
-        const nomeInput = document.getElementById('p-nome').value;
-        const valorInput = document.getElementById('p-valor').value;
+        status.innerText = "Lendo texto da etiqueta...";
         
-        // Verifica se o valor é um número válido antes de tentar salvar
-        const valor = parseFloat(valorInput);
+        // Tesseract lê a imagem e extrai o texto
+        const { data: { text } } = await Tesseract.recognize(file, 'por');
         
-        if (!nomeInput || isNaN(valor)) {
-            alert("Por favor, preencha o nome do produto e um valor válido.");
-            return;
-        }
-
-        const produto = {
-            nome: nomeInput,
-            valor: valor,
-            data: new Date()
-        };
-
-        const historico = JSON.parse(localStorage.getItem('compras') || '[]');
-        historico.push(produto);
-        localStorage.setItem('compras', JSON.stringify(historico));
-        
-        // Limpa os campos após adicionar
-        document.getElementById('p-nome').value = "";
-        document.getElementById('p-valor').value = "";
-        
-        atualizarLista();
-    }
-    function atualizarLista() {
-        const historico = JSON.parse(localStorage.getItem('compras') || '[]');
-        const tbody = document.querySelector('#lista-compras tbody');
-        tbody.innerHTML = "";
-        let total = 0;
-        historico.forEach(p => {
-            tbody.innerHTML += `<tr><td>${p.nome}</td><td>R$ ${p.valor.toFixed(2)}</td></tr>`;
-            total += p.valor;
-        });
-        document.getElementById('total-geral').innerText = `R$ ${total.toFixed(2)}`;
-    }
-    atualizarLista();
+        // Preenche o campo com o texto encontrado
+        pNome.value = text.split('\n')[0]; // Pega a primeira linha detectada
+        status.innerText = "Concluído!";
+    });
 </script>
 </body>
 </html>
