@@ -67,17 +67,33 @@
 
     // 2. Salvar e Calcular
     function adicionarProduto() {
+        const nomeInput = document.getElementById('p-nome').value;
+        const valorInput = document.getElementById('p-valor').value;
+        
+        // Verifica se o valor é um número válido antes de tentar salvar
+        const valor = parseFloat(valorInput);
+        
+        if (!nomeInput || isNaN(valor)) {
+            alert("Por favor, preencha o nome do produto e um valor válido.");
+            return;
+        }
+
         const produto = {
-            nome: document.getElementById('p-nome').value,
-            valor: parseFloat(document.getElementById('p-valor').value),
+            nome: nomeInput,
+            valor: valor,
             data: new Date()
         };
+
         const historico = JSON.parse(localStorage.getItem('compras') || '[]');
         historico.push(produto);
         localStorage.setItem('compras', JSON.stringify(historico));
+        
+        // Limpa os campos após adicionar
+        document.getElementById('p-nome').value = "";
+        document.getElementById('p-valor').value = "";
+        
         atualizarLista();
     }
-
     function atualizarLista() {
         const historico = JSON.parse(localStorage.getItem('compras') || '[]');
         const tbody = document.querySelector('#lista-compras tbody');
