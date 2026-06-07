@@ -33,19 +33,37 @@
 
     // 1. Identificar com IA
     document.getElementById('cameraInput').addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-            const res = await fetch(API_URL, {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    
+    reader.onloadend = async () => {
+        const pNome = document.getElementById('p-nome');
+        pNome.value = "Analisando..."; // Feedback visual
+
+        // Remove o prefixo do base64 (data:image/jpeg;base64,...)
+        const base64Clean = reader.result.split(',')[1]; 
+
+        try {
+            const res = await fetch("https://render-1-fobj.onrender.com/analisar", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ inputs: reader.result.split(',')[1] })
+                body: JSON.stringify({ inputs: base64Clean })
             });
+            
             const data = await res.json();
-            document.getElementById('p-nome').value = data.descricao;
-        };
-        reader.readAsDataURL(file);
-    });
+            
+            if (data.descricao) {
+                pNome.value = data.descricao;
+            } else {
+                pNome.value = "Não identificado";
+            }
+        } catch (error) {
+            alert("Erro ao conectar com servidor.");
+            pNome.value = "";
+        }
+    };
+    reader.readAsDataURL(file);
+});
 
     // 2. Salvar e Calcular
     function adicionarProduto() {
