@@ -79,33 +79,40 @@
         showTab('tab-price');
     }
 
-// --- INTELIGÊNCIA ARTIFICIAL ATUALIZADA ---
+// --- INTELIGÊNCIA ARTIFICIAL ATUALIZADA COM RETRY ---
 document.getElementById('cameraInput').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    document.getElementById('status').innerText = "Analisando com IA...";
+    document.getElementById('status').innerText = "Analisando com IA (pode levar alguns segundos)...";
 
     const reader = new FileReader();
     reader.onloadend = async () => {
         try {
-            // Convertendo a imagem base64 para o formato esperado pela API
             const base64Image = reader.result.split(',')[1];
             
-            const response = await fetch(API_URL, {
-                method: "POST",
-                headers: { 
-                    "Authorization": `Bearer ${HF_TOKEN}`, 
-                    "Content-Type": "application/json" 
-                },
-                body: JSON.stringify({ inputs: base64Image })
-            });
+            // Função para tentar o fetch, se falhar, tenta novamente após 3 segundos
+            const fetchData = async (retries = 3) => {
+                const response = await fetch(API_URL, {
+                    method: "POST",
+                    headers: { 
+                        "Authorization": `Bearer ${HF_TOKEN}`, 
+                        "Content-Type": "application/json" 
+                    },
+                    body: JSON.stringify({ inputs: base64Image })
+                });
 
-            if (!response.ok) {
-                const errorData = await response.text();
-                throw new Error(`Erro ${response.status}: ${errorData}`);
-            }
+                if (response.status === 503) { // 503 significa que o modelo está carregando
+                    if (retries > 0) {
+                        await new Promise(resolve => setTimeout(resolve, 3000));
+                        return fetchData(retries - 1);
+                    }
+                }
+                
+                if (!response.ok) throw new Error(`Erro ${response.status}`);
+                return await response.json();
+            };
 
-            const result = await response.json();
+            const result = await fetchData();
             const descricao = result[0].generated_text;
 
             document.getElementById('p-nome').value = descricao;
@@ -115,7 +122,7 @@ document.getElementById('cameraInput').addEventListener('change', async (e) => {
             document.getElementById('status').innerText = "Identificado!";
         } catch (err) {
             console.error("Erro detalhado:", err);
-            alert("Erro na IA: " + err.message);
+            alert("A IA está ocupada ou a conexão falhou. Tente novamente em alguns segundos.");
             document.getElementById('status').innerText = "Erro.";
         }
     };
