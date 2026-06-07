@@ -1,39 +1,79 @@
-// --- INTELIGÊNCIA ARTIFICIAL ATUALIZADA COM RETRY ---
-document.getElementById('cameraInput').addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    document.getElementById('status').innerText = "Analisando com IA...";
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Shop & Save</title>
+    <style>
+        :root { --primary: #2dd4bf; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 70px; }
+        .container { padding: 20px; max-width: 600px; margin: auto; }
+        .tab-content { display: none; }
+        .active { display: block; }
+        .card { background: var(--card); padding: 20px; border-radius: 15px; margin-bottom: 20px; }
+        input, button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; font-size: 16px; }
+        button { background: var(--primary); color: #000; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
 
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-        try {
-            const base64Image = reader.result.split(',')[1];
-            
-            const response = await fetch(API_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ inputs: base64Image })
-            });
+<div class="container">
+    <div id="tab-scan" class="tab-content active">
+        <h2>1. Tirar Foto</h2>
+        <div class="card">
+            <input type="file" accept="image/*" capture="environment" id="cameraInput">
+            <p id="status">Aguardando foto...</p>
+        </div>
+        <div id="form-produto" style="display:none;">
+            <h3>Dados Identificados:</h3>
+            <input type="text" id="p-nome" placeholder="Nome do Produto">
+            <button onclick="proximaAba()">Confirmar</button>
+        </div>
+    </div>
+</div>
 
-            if (!response.ok) throw new Error("Erro no servidor backend");
+<script>
+    // URL do seu servidor Render (use a URL atual do seu log)
+    const API_URL = "https://render-1-fobj.onrender.com/analisar";
 
-            const result = await response.json();
-            console.log("Resposta recebida da IA:", result);
+    document.getElementById('cameraInput').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        document.getElementById('status').innerText = "Analisando com IA...";
 
-            // CORREÇÃO: Fechamento correto da lógica e das chaves
-            if (Array.isArray(result) && result[0].generated_text) {
-                const descricao = result[0].generated_text;
-                document.getElementById('p-nome').value = descricao;
-                document.getElementById('form-produto').style.display = 'block';
-                document.getElementById('status').innerText = "Identificado!";
-            } else {
-                document.getElementById('status').innerText = "Erro no formato da IA.";
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            try {
+                const base64Image = reader.result.split(',')[1];
+                
+                const response = await fetch(API_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ inputs: base64Image })
+                });
+
+                if (!response.ok) throw new Error("Erro no servidor backend");
+
+                const result = await response.json();
+                console.log("Resposta da IA:", result);
+
+                if (Array.isArray(result) && result[0].generated_text) {
+                    document.getElementById('p-nome').value = result[0].generated_text;
+                    document.getElementById('form-produto').style.display = 'block';
+                    document.getElementById('status').innerText = "Identificado!";
+                } else {
+                    document.getElementById('status').innerText = "Erro no formato da IA.";
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Erro ao conectar com servidor.");
+                document.getElementById('status').innerText = "Erro.";
             }
-        } catch (err) { // A chave do try fecha aqui, permitindo que o catch funcione
-            console.error(err);
-            alert("Erro ao conectar com seu servidor backend.");
-            document.getElementById('status').innerText = "Erro.";
-        }
-    };
-    reader.readAsDataURL(file);
-});
+        };
+        reader.readAsDataURL(file);
+    });
+
+    function proximaAba() { alert("Produto: " + document.getElementById('p-nome').value); }
+</script>
+</body>
+</html>
