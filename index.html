@@ -64,7 +64,7 @@
 <script>
     // --- CONFIGURAÇÃO ---
     const HF_TOKEN = ""; 
-    const API_URL = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-large";
+    const API_URL = "https://render-evi1.onrender.com";
     let compras = JSON.parse(localStorage.getItem('minhas_compras')) || [];
 
     // --- NAVEGAÇÃO ---
@@ -83,46 +83,32 @@
 document.getElementById('cameraInput').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    document.getElementById('status').innerText = "Analisando com IA (pode levar alguns segundos)...";
+    document.getElementById('status').innerText = "Analisando com IA...";
 
     const reader = new FileReader();
     reader.onloadend = async () => {
         try {
             const base64Image = reader.result.split(',')[1];
             
-            // Função para tentar o fetch, se falhar, tenta novamente após 3 segundos
-            const fetchData = async (retries = 3) => {
-                const response = await fetch(API_URL, {
-                    method: "POST",
-                    headers: { 
-                        "Authorization": `Bearer ${HF_TOKEN}`, 
-                        "Content-Type": "application/json" 
-                    },
-                    body: JSON.stringify({ inputs: base64Image })
-                });
+            // Agora chamamos o SEU servidor, não o Hugging Face diretamente
+            const response = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ inputs: base64Image })
+            });
 
-                if (response.status === 503) { // 503 significa que o modelo está carregando
-                    if (retries > 0) {
-                        await new Promise(resolve => setTimeout(resolve, 3000));
-                        return fetchData(retries - 1);
-                    }
-                }
-                
-                if (!response.ok) throw new Error(`Erro ${response.status}`);
-                return await response.json();
-            };
+            if (!response.ok) throw new Error("Erro no servidor backend");
 
-            const result = await fetchData();
+            const result = await response.json();
+            // Ajuste conforme o formato que o BLIP retorna
             const descricao = result[0].generated_text;
 
             document.getElementById('p-nome').value = descricao;
-            document.getElementById('p-marca').value = "Detectado via IA";
-            document.getElementById('p-cat').value = "Geral";
             document.getElementById('form-produto').style.display = 'block';
             document.getElementById('status').innerText = "Identificado!";
         } catch (err) {
-            console.error("Erro detalhado:", err);
-            alert("A IA está ocupada ou a conexão falhou. Tente novamente em alguns segundos.");
+            console.error(err);
+            alert("Erro ao conectar com seu servidor backend.");
             document.getElementById('status').innerText = "Erro.";
         }
     };
