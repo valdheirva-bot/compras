@@ -1,83 +1,3 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Shop & Save</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
-    <style>
-        :root { --primary: #2dd4bf; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 70px; }
-        .container { padding: 20px; max-width: 600px; margin: auto; }
-        .tab-content { display: none; }
-        .active { display: block; }
-        .card { background: var(--card); padding: 20px; border-radius: 15px; margin-bottom: 20px; }
-        input, select, button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; font-size: 16px; }
-        button { background: var(--primary); color: #000; font-weight: bold; cursor: pointer; }
-        nav { position: fixed; bottom: 0; width: 100%; background: var(--card); display: flex; justify-content: space-around; padding: 10px 0; border-top: 1px solid #334155; }
-        nav div { cursor: pointer; font-size: 12px; text-align: center; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #334155; }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <div id="tab-scan" class="tab-content active">
-        <h2>1. Tirar Foto</h2>
-        <div class="card">
-            <input type="file" accept="image/*" capture="environment" id="cameraInput">
-            <p id="status">Aguardando foto...</p>
-        </div>
-        <div id="form-produto" style="display:none;">
-            <h3>Dados Identificados:</h3>
-            <input type="text" id="p-nome" placeholder="Nome do Produto">
-            <input type="text" id="p-marca" placeholder="Marca">
-            <input type="text" id="p-cat" placeholder="Categoria">
-            <button onclick="proximaAba()">Confirmar e Definir Preço</button>
-        </div>
-    </div>
-
-    <div id="tab-price" class="tab-content">
-        <h2>2. Valor Pago</h2>
-        <div class="card">
-            <p id="label-nome-confirmar"></p>
-            <input type="number" id="p-valor" placeholder="R$ 0,00" step="0.01">
-            <button onclick="salvarProduto()">Salvar no Histórico</button>
-        </div>
-    </div>
-
-    <div id="tab-list" class="tab-content">
-        <h2>3. Meus Gastos</h2>
-        <div class="card"><p>Hoje: <b id="g-hoje">R$ 0</b> | Mês: <b id="g-mes">R$ 0</b></p></div>
-        <table id="tabela-compras"><thead><tr><th>Produto</th><th>Valor</th></tr></thead><tbody></tbody></table>
-    </div>
-</div>
-
-<nav>
-    <div onclick="showTab('tab-scan')">📷<br>Scanner</div>
-    <div onclick="showTab('tab-list')">📊<br>Gastos</div>
-</nav>
-
-<script>
-    // --- CONFIGURAÇÃO ---
-   const API_URL = "https://render-1-fobj.onrender.com/analisar";
-    let compras = JSON.parse(localStorage.getItem('minhas_compras')) || [];
-
-    // --- NAVEGAÇÃO ---
-    function showTab(id) {
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-        if(id === 'tab-list') carregarLista();
-    }
-
-    function proximaAba() {
-        document.getElementById('label-nome-confirmar').innerText = document.getElementById('p-nome').value;
-        showTab('tab-price');
-    }
-
 // --- INTELIGÊNCIA ARTIFICIAL ATUALIZADA COM RETRY ---
 document.getElementById('cameraInput').addEventListener('change', async (e) => {
     const file = e.target.files[0];
@@ -89,7 +9,6 @@ document.getElementById('cameraInput').addEventListener('change', async (e) => {
         try {
             const base64Image = reader.result.split(',')[1];
             
-            // Agora chamamos o SEU servidor, não o Hugging Face diretamente
             const response = await fetch(API_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -100,14 +19,17 @@ document.getElementById('cameraInput').addEventListener('change', async (e) => {
 
             const result = await response.json();
             console.log("Resposta recebida da IA:", result);
-            // Ajuste conforme o formato que o BLIP retorna
-            if (Array.isArray(result) && result[0].generated_text) {
-            const descricao = result[0].generated_text;
 
-            document.getElementById('p-nome').value = descricao;
-            document.getElementById('form-produto').style.display = 'block';
-            document.getElementById('status').innerText = "Identificado!";
-        } catch (err) {
+            // CORREÇÃO: Fechamento correto da lógica e das chaves
+            if (Array.isArray(result) && result[0].generated_text) {
+                const descricao = result[0].generated_text;
+                document.getElementById('p-nome').value = descricao;
+                document.getElementById('form-produto').style.display = 'block';
+                document.getElementById('status').innerText = "Identificado!";
+            } else {
+                document.getElementById('status').innerText = "Erro no formato da IA.";
+            }
+        } catch (err) { // A chave do try fecha aqui, permitindo que o catch funcione
             console.error(err);
             alert("Erro ao conectar com seu servidor backend.");
             document.getElementById('status').innerText = "Erro.";
@@ -115,38 +37,3 @@ document.getElementById('cameraInput').addEventListener('change', async (e) => {
     };
     reader.readAsDataURL(file);
 });
-
-    // --- LÓGICA DE DADOS ---
-    function salvarProduto() {
-        const item = { 
-            nome: document.getElementById('p-nome').value, 
-            valor: parseFloat(document.getElementById('p-valor').value), 
-            data: new Date().toISOString() 
-        };
-        compras.push(item);
-        localStorage.setItem('minhas_compras', JSON.stringify(compras));
-        alert("Salvo!");
-        document.getElementById('form-produto').style.display = 'none';
-        showTab('tab-list');
-    }
-
-    function carregarLista() {
-        const tbody = document.querySelector('#tabela-compras tbody');
-        tbody.innerHTML = "";
-        let totalHoje = 0, totalMes = 0;
-        const hojeStr = new Date().toLocaleDateString();
-        const mesAtual = new Date().getMonth();
-
-        compras.forEach(c => {
-            const row = `<tr><td>${c.nome}</td><td>R$ ${c.valor.toFixed(2)}</td></tr>`;
-            tbody.innerHTML += row;
-            const dataC = new Date(c.data);
-            if(dataC.toLocaleDateString() === hojeStr) totalHoje += c.valor;
-            if(dataC.getMonth() === mesAtual) totalMes += c.valor;
-        });
-        document.getElementById('g-hoje').innerText = `R$ ${totalHoje.toFixed(2)}`;
-        document.getElementById('g-mes').innerText = `R$ ${totalMes.toFixed(2)}`;
-    }
-</script>
-</body>
-</html>
