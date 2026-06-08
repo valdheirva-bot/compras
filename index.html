@@ -2,32 +2,80 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Scanner de Produtos</title>
+    <title>Smart Shop Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f1f5f9; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
+        .container { max-width: 600px; margin: auto; }
+        .card { background: var(--card); padding: 25px; border-radius: 20px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); }
+        input, button { width: 100%; padding: 14px; margin: 10px 0; border-radius: 12px; border: none; background: #334155; color: white; }
+        button { background: var(--accent); color: #0f172a; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { filter: brightness(1.2); }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { flex: 1; padding: 10px; background: #334155; cursor: pointer; border-radius: 8px; text-align: center; }
+        .active { background: var(--accent); color: #0f172a; }
+    </style>
 </head>
 <body>
+<div class="container">
+    <div class="card">
+        <h2>Scanner de Compras</h2>
+        <input type="file" id="cameraInput" accept="image/*" capture="environment">
+        <input type="text" id="p-nome" placeholder="Nome do Produto">
+        <input type="number" id="p-valor" placeholder="R$ Valor">
+        <button onclick="salvarProduto()">Adicionar ao Histórico</button>
+    </div>
 
-<div class="card">
-    <input type="file" id="cameraInput" accept="image/*" capture="environment">
-    <input type="text" id="p-nome" placeholder="Nome do Produto">
-    <p id="status"></p>
+    <div class="tabs">
+        <div class="tab-btn active" onclick="mostrarTab('lista')">Lista</div>
+        <div class="tab-btn" onclick="mostrarTab('relatorio')">Relatórios</div>
+    </div>
+
+    <div id="view-lista">
+        <table id="tabela" style="width:100%">
+            <thead><tr><th>Produto</th><th>Valor</th></tr></thead>
+            <tbody></tbody>
+        </table>
+        <button style="background:#64748b" onclick="exportarExcel()">Exportar Excel (XLS)</button>
+    </div>
 </div>
 
 <script>
+    // Lógica do Tesseract (Scanner)
     document.getElementById('cameraInput').addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        const status = document.getElementById('status');
-        const pNome = document.getElementById('p-nome');
-
-        status.innerText = "Lendo texto da etiqueta...";
-        
-        // Tesseract lê a imagem e extrai o texto
-        const { data: { text } } = await Tesseract.recognize(file, 'por');
-        
-        // Preenche o campo com o texto encontrado
-        pNome.value = text.split('\n')[0]; // Pega a primeira linha detectada
-        status.innerText = "Concluído!";
+        const { data: { text } } = await Tesseract.recognize(e.target.files[0], 'por');
+        document.getElementById('p-nome').value = text.split('\n')[0];
     });
+
+    function salvarProduto() {
+        const nome = document.getElementById('p-nome').value;
+        const valor = parseFloat(document.getElementById('p-valor').value);
+        if(!nome || isNaN(valor)) return alert("Preencha tudo!");
+
+        const historico = JSON.parse(localStorage.getItem('compras') || '[]');
+        historico.push({ nome, valor, data: new Date() });
+        localStorage.setItem('compras', JSON.stringify(historico));
+        alert("Produto salvo!");
+        renderizarLista();
+    }
+
+    function exportarExcel() {
+        const data = JSON.parse(localStorage.getItem('compras') || '[]');
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(data);
+        XLSX.utils.book_append_sheet(wb, ws, "Compras");
+        XLSX.writeFile(wb, "Relatorio_Compras.xlsx");
+    }
+
+    function renderizarLista() {
+        const tbody = document.querySelector('#tabela tbody');
+        const lista = JSON.parse(localStorage.getItem('compras') || '[]');
+        tbody.innerHTML = lista.map(p => `<tr><td>${p.nome}</td><td>R$ ${p.valor.toFixed(2)}</td></tr>`).join('');
+    }
+    renderizarLista();
 </script>
 </body>
 </html>
