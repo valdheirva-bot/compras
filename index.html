@@ -1,30 +1,130 @@
-document.getElementById('cameraInput').addEventListener('change', async (e) => {
-    const status = document.getElementById('status');
-    const file = e.target.files[0];
-    status.innerText = "Processando imagem...";
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Shop Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f1f5f9; --danger: #ef4444; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 20px; margin: 0; }
+        .container { max-width: 600px; margin: auto; }
+        .card { background: var(--card); padding: 20px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        input, button { width: 100%; padding: 14px; margin: 8px 0; border-radius: 10px; border: none; box-sizing: border-box; }
+        button { background: var(--accent); color: #0f172a; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:hover { filter: brightness(1.1); }
+        .btn-del { background: var(--danger); color: white; padding: 5px 10px; width: auto; font-size: 12px; }
+        .nav { display: flex; gap: 5px; margin-bottom: 20px; }
+        .nav button { flex: 1; background: #334155; color: white; border: none; padding: 10px; cursor: pointer; }
+        .nav button.active { background: var(--accent); color: #0f172a; }
+        .tab-content { display: none; }
+        .active-tab { display: block; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; border-bottom: 1px solid #334155; text-align: left; }
+    </style>
+</head>
+<body>
 
-    // Cria um elemento de imagem temporário para processamento
-    const img = new Image();
-    img.src = URL.createObjectURL(file);
-    
-    img.onload = async () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        // Define o tamanho para o canvas (podemos focar no centro da imagem)
-        canvas.width = img.width;
-        canvas.height = img.height;
-        
-        // Aplica filtros para destacar o texto
-        ctx.filter = 'grayscale(1) contrast(1.5)';
-        ctx.drawImage(img, 0, 0);
+<div class="container">
+    <div class="nav">
+        <button id="btn-add" class="active" onclick="show('add', 'btn-add')">Adicionar</button>
+        <button id="btn-lista" onclick="show('lista', 'btn-lista')">Lista</button>
+        <button id="btn-relat" onclick="show('relat', 'btn-relat')">Relatório</button>
+    </div>
 
-        // Executa o OCR no canvas processado
-        const { data: { text } } = await Tesseract.recognize(canvas, 'por', {
-            logger: m => console.log(m) // Opcional: ver progresso no console
-        });
+    <div id="add" class="tab-content active-tab card">
+        <h3>Escanear Produto</h3>
+        <input type="file" id="cameraInput" accept="image/*" capture="environment">
+        <input type="text" id="p-nome" placeholder="Nome do Produto">
+        <input type="number" id="p-valor" placeholder="R$ Valor">
+        <button onclick="salvar()">Salvar Produto</button>
+        <p id="status" style="font-size: 0.8em; color: var(--accent);"></p>
+    </div>
+
+    <div id="lista" class="tab-content card">
+        <h3>Histórico</h3>
+        <table id="tabela"><thead><tr><th>Produto</th><th>Valor</th><th>Ação</th></tr></thead><tbody id="corpo-tabela"></tbody></table>
+    </div>
+
+    <div id="relat" class="tab-content card">
+        <h3>Resumo de Gastos</h3>
+        <p id="resumo"></p>
+        <button style="background: #64748b; color: white;" onclick="exportarExcel()">Exportar Excel (XLS)</button>
+    </div>
+</div>
+
+<script>
+    // Navegação e Renderização
+    function show(id, btnId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active-tab'));
+        document.querySelectorAll('.nav button').forEach(el => el.classList.remove('active'));
+        document.getElementById(id).classList.add('active-tab');
+        document.getElementById(btnId).classList.add('active');
+        if(id === 'lista') renderLista();
+        if(id === 'relat') renderRelatorio();
+    }
+
+    // OCR Melhorado com Processamento de Imagem
+    document.getElementById('cameraInput').addEventListener('change', async (e) => {
+        const status = document.getElementById('status');
+        status.innerText = "Processando imagem...";
+        const img = new Image();
+        img.src = URL.createObjectURL(e.target.files[0]);
+        img.onload = async () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width; canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.filter = 'grayscale(1) contrast(1.5)';
+            ctx.drawImage(img, 0, 0);
+            const { data: { text } } = await Tesseract.recognize(canvas, 'por');
+            document.getElementById('p-nome').value = text.split('\n')[0].trim();
+            status.innerText = "Leitura concluída!";
+        };
+    });
+
+    function salvar() {
+        const nome = document.getElementById('p-nome').value;
+        const valor = parseFloat(document.getElementById('p-valor').value);
+        if(!nome || isNaN(valor)) return alert("Preencha o nome e o valor!");
         
-        document.getElementById('p-nome').value = text.split('\n')[0].trim();
-        status.innerText = "Leitura concluída!";
-    };
-});
+        const h = JSON.parse(localStorage.getItem('compras') || '[]');
+        h.push({ nome, valor });
+        localStorage.setItem('compras', JSON.stringify(h));
+        
+        document.getElementById('p-nome').value = "";
+        document.getElementById('p-valor').value = "";
+        alert("Produto adicionado!");
+        renderLista();
+    }
+
+    function excluir(index) {
+        const h = JSON.parse(localStorage.getItem('compras') || '[]');
+        h.splice(index, 1);
+        localStorage.setItem('compras', JSON.stringify(h));
+        renderLista();
+    }
+
+    function renderLista() {
+        const h = JSON.parse(localStorage.getItem('compras') || '[]');
+        document.getElementById('corpo-tabela').innerHTML = h.map((p, index) => `
+            <tr><td>${p.nome}</td><td>R$ ${p.valor.toFixed(2)}</td>
+            <td><button class="btn-del" onclick="excluir(${index})">X</button></td></tr>`).join('');
+    }
+
+    function renderRelatorio() {
+        const h = JSON.parse(localStorage.getItem('compras') || '[]');
+        const total = h.reduce((acc, cur) => acc + cur.valor, 0);
+        document.getElementById('resumo').innerText = `Total acumulado: R$ ${total.toFixed(2)}`;
+    }
+
+    function exportarExcel() {
+        const h = JSON.parse(localStorage.getItem('compras') || '[]');
+        const ws = XLSX.utils.json_to_sheet(h);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Compras");
+        XLSX.writeFile(wb, "Relatorio_Compras.xlsx");
+    }
+</script>
+</body>
+</html>
