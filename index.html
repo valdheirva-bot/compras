@@ -8,74 +8,86 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f1f5f9; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
         .container { max-width: 600px; margin: auto; }
-        .card { background: var(--card); padding: 25px; border-radius: 20px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); }
-        input, button { width: 100%; padding: 14px; margin: 10px 0; border-radius: 12px; border: none; background: #334155; color: white; }
-        button { background: var(--accent); color: #0f172a; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        button:hover { filter: brightness(1.2); }
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab-btn { flex: 1; padding: 10px; background: #334155; cursor: pointer; border-radius: 8px; text-align: center; }
-        .active { background: var(--accent); color: #0f172a; }
+        .card { background: var(--card); padding: 20px; border-radius: 15px; margin-bottom: 20px; }
+        input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: none; }
+        button { background: var(--accent); cursor: pointer; font-weight: bold; }
+        .tab-content { display: none; }
+        .active-tab { display: block; }
+        .nav { display: flex; gap: 5px; margin-bottom: 20px; }
+        .nav button { flex: 1; background: #334155; color: white; }
     </style>
 </head>
 <body>
 <div class="container">
-    <div class="card">
-        <h2>Scanner de Compras</h2>
+    <div class="nav">
+        <button onclick="show('add')">Adicionar</button>
+        <button onclick="show('lista')">Lista</button>
+        <button onclick="show('relat')">Relatório</button>
+    </div>
+
+    <div id="add" class="tab-content active-tab card">
         <input type="file" id="cameraInput" accept="image/*" capture="environment">
         <input type="text" id="p-nome" placeholder="Nome do Produto">
         <input type="number" id="p-valor" placeholder="R$ Valor">
-        <button onclick="salvarProduto()">Adicionar ao Histórico</button>
+        <button onclick="salvar()">Salvar Produto</button>
     </div>
 
-    <div class="tabs">
-        <div class="tab-btn active" onclick="mostrarTab('lista')">Lista</div>
-        <div class="tab-btn" onclick="mostrarTab('relatorio')">Relatórios</div>
+    <div id="lista" class="tab-content card">
+        <table id="tabela" style="width:100%"><thead><tr><th>Produto</th><th>Valor</th></tr></thead><tbody></tbody></table>
     </div>
 
-    <div id="view-lista">
-        <table id="tabela" style="width:100%">
-            <thead><tr><th>Produto</th><th>Valor</th></tr></thead>
-            <tbody></tbody>
-        </table>
-        <button style="background:#64748b" onclick="exportarExcel()">Exportar Excel (XLS)</button>
+    <div id="relat" class="tab-content card">
+        <h3>Resumo</h3>
+        <p id="resumo"></p>
+        <button onclick="exportarExcel()">Exportar Excel</button>
     </div>
 </div>
 
 <script>
-    // Lógica do Tesseract (Scanner)
+    function show(id) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active-tab'));
+        document.getElementById(id).classList.add('active-tab');
+        if(id === 'lista') renderLista();
+        if(id === 'relat') renderRelatorio();
+    }
+
     document.getElementById('cameraInput').addEventListener('change', async (e) => {
         const { data: { text } } = await Tesseract.recognize(e.target.files[0], 'por');
         document.getElementById('p-nome').value = text.split('\n')[0];
     });
 
-    function salvarProduto() {
+    function salvar() {
         const nome = document.getElementById('p-nome').value;
         const valor = parseFloat(document.getElementById('p-valor').value);
-        if(!nome || isNaN(valor)) return alert("Preencha tudo!");
-
+        if(!nome || isNaN(valor)) return alert("Preencha corretamente!");
+        
         const historico = JSON.parse(localStorage.getItem('compras') || '[]');
-        historico.push({ nome, valor, data: new Date() });
+        historico.push({ nome, valor, data: new Date().toISOString() });
         localStorage.setItem('compras', JSON.stringify(historico));
-        alert("Produto salvo!");
-        renderizarLista();
+        alert("Salvo!");
+    }
+
+    function renderLista() {
+        const h = JSON.parse(localStorage.getItem('compras') || '[]');
+        document.querySelector('#tabela tbody').innerHTML = h.map(p => `<tr><td>${p.nome}</td><td>R$ ${p.valor.toFixed(2)}</td></tr>`).join('');
+    }
+
+    function renderRelatorio() {
+        const h = JSON.parse(localStorage.getItem('compras') || '[]');
+        const hoje = new Date().toLocaleDateString();
+        const total = h.reduce((acc, cur) => acc + cur.valor, 0);
+        document.getElementById('resumo').innerText = `Total gasto: R$ ${total.toFixed(2)}`;
     }
 
     function exportarExcel() {
-        const data = JSON.parse(localStorage.getItem('compras') || '[]');
+        const h = JSON.parse(localStorage.getItem('compras') || '[]');
+        const ws = XLSX.utils.json_to_sheet(h);
         const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.json_to_sheet(data);
-        XLSX.utils.book_append_sheet(wb, ws, "Compras");
-        XLSX.writeFile(wb, "Relatorio_Compras.xlsx");
+        XLSX.utils.book_append_sheet(wb, ws, "Relatorio");
+        XLSX.writeFile(wb, "Compras.xlsx");
     }
-
-    function renderizarLista() {
-        const tbody = document.querySelector('#tabela tbody');
-        const lista = JSON.parse(localStorage.getItem('compras') || '[]');
-        tbody.innerHTML = lista.map(p => `<tr><td>${p.nome}</td><td>R$ ${p.valor.toFixed(2)}</td></tr>`).join('');
-    }
-    renderizarLista();
 </script>
 </body>
 </html>
