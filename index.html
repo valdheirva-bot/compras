@@ -7,12 +7,13 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f1f5f9; }
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f1f5f9; --danger: #ef4444; }
         body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
         .container { max-width: 600px; margin: auto; }
         .card { background: var(--card); padding: 20px; border-radius: 15px; margin-bottom: 20px; }
         input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: none; }
         button { background: var(--accent); cursor: pointer; font-weight: bold; }
+        .btn-del { background: var(--danger); color: white; padding: 5px 10px; width: auto; font-size: 12px; }
         .tab-content { display: none; }
         .active-tab { display: block; }
         .nav { display: flex; gap: 5px; margin-bottom: 20px; }
@@ -40,7 +41,7 @@
 
     <div id="lista" class="tab-content card">
         <table id="tabela">
-            <thead><tr><th>Produto</th><th>Valor</th></tr></thead>
+            <thead><tr><th>Produto</th><th>Valor</th><th>Ação</th></tr></thead>
             <tbody id="corpo-tabela"></tbody>
         </table>
     </div>
@@ -80,13 +81,26 @@
         
         document.getElementById('p-nome').value = "";
         document.getElementById('p-valor').value = "";
-        alert("Produto salvo!");
+        alert("Salvo!");
+    }
+
+    function excluir(index) {
+        const historico = JSON.parse(localStorage.getItem('compras') || '[]');
+        historico.splice(index, 1);
+        localStorage.setItem('compras', JSON.stringify(historico));
+        renderLista();
     }
 
     function renderLista() {
         const h = JSON.parse(localStorage.getItem('compras') || '[]');
         const corpo = document.getElementById('corpo-tabela');
-        corpo.innerHTML = h.map(p => `<tr><td>${p.nome}</td><td>R$ ${p.valor.toFixed(2)}</td></tr>`).join('');
+        corpo.innerHTML = h.map((p, index) => `
+            <tr>
+                <td>${p.nome}</td>
+                <td>R$ ${p.valor.toFixed(2)}</td>
+                <td><button class="btn-del" onclick="excluir(${index})">X</button></td>
+            </tr>
+        `).join('');
     }
 
     function renderRelatorio() {
